@@ -1,0 +1,10 @@
+{
+  "name": "fantastical-12-pubs",
+  "private": true,
+  "type": "module",
+  "description": "Fantastical 12 Pubs of 2026 - site + check-in functions",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.1",
+    "js-yaml": "^4.1.0"
+  }
+}

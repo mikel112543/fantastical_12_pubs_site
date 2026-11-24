@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Host HQ - Pub Crawl Check-ins</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<style>
+  body { margin: 0; font-family: Tahoma, Verdana, sans-serif; background: #008080; color: #000; }
+  .win { max-width: 1100px; margin: 12px auto; background: #c0c0c0; border: 3px outset #fff; box-shadow: 6px 6px 0 #000; }
+  .title { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: bold; padding: 5px 8px; font-size: 14px; }
+  .body { padding: 12px; }
+  button, .btn { font-family: inherit; font-size: 13px; font-weight: bold; background: #c0c0c0; border: 3px outset #fff; padding: 5px 12px; cursor: pointer; color: #000; text-decoration: none; display: inline-block; }
+  button:active { border-style: inset; }
+  button.danger { color: #a00; }
+  input { font-size: 15px; padding: 5px; border: 2px inset #fff; font-family: inherit; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  .stats div { background: #fff; border: 2px inset #fff; padding: 6px 12px; font-size: 12px; text-align: center; }
+  .stats b { display: block; font-size: 20px; color: #000080; }
+  .scroll { overflow-x: auto; background: #fff; border: 2px inset #fff; }
+  table { border-collapse: collapse; font-size: 13px; width: 100%; }
+  th, td { border: 1px solid #999; padding: 4px 6px; text-align: center; white-space: nowrap; }
+  th { background: #000080; color: #fff; position: sticky; top: 0; }
+  th.pubh { writing-mode: vertical-rl; transform: rotate(180deg); height: 110px; font-weight: normal; }
+  td.name { text-align: left; font-weight: bold; }
+  td.v { background: #c8f7c8; }
+  td.n { background: #ffe0a0; }
+  td.u { background: #e8e8ff; }
+  .legend { font-size: 12px; margin: 6px 0; }
+  .muted { color: #444; font-size: 12px; }
+  #msg { font-weight: bold; margin: 6px 0; }
+  h3 { margin: 16px 0 6px; font-size: 14px; }
+  .log td { text-align: left; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="title">🍺 HOST HQ - CHECK-IN TRACKER</div>
+  <div class="body">
+    <form class="row" id="login">
+      <label for="key">Admin key:</label>
+      <input id="key" type="password" autocomplete="current-password" placeholder="your ADMIN_KEY">
+      <button type="submit">Log in</button>
+      <span class="muted">(the ADMIN_KEY you set in Netlify)</span>
+    </form>
+
+    <div id="app" style="display:none">
+      <div class="row">
+        <button type="button" id="refresh">↻ Refresh</button>
+        <button type="button" id="csv">⬇ Download CSV</button>
+        <button type="button" id="csvlog">⬇ Full log CSV</button>
+        <label class="muted"><input type="checkbox" id="auto" checked> auto-refresh every 30s</label>
+        <span class="muted" id="updated"></span>
+      </div>
+      <div id="msg"></div>
+      <div class="stats" id="stats"></div>
+      <div class="legend">✅ verified (within range) · ❓ checked in but not near the pub (hover/tap for distance) · ☑️ checked in, no location · blank = not checked in</div>
+      <div class="scroll"><table id="grid"></table></div>
+
+      <h3>Latest activity</h3>
+      <div class="scroll"><table class="log" id="log"></table></div>
+
+      <h3>After the crawl</h3>
+      <div class="row">
+        <input id="confirm" placeholder="type DELETE to confirm">
+        <button type="button" class="danger" id="wipe">🗑 Delete all check-in data</button>
+      </div>
+      <p class="muted"><b>Download CSV</b> = one row per person per pub they're ticked at (accidental taps and un-ticks already removed). <b>Full log CSV</b> = every single press, for investigating.<br>Download the CSV first. Deleting removes every name and location from Netlify storage and can't be undone.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let KEY = "";
+  try { KEY = sessionStorage.getItem("12pubs-admin") || ""; } catch (e) {}
+  let pubs = [];
+  let timer = null;
+
+  function msg(t, bad) { $("#msg").textContent = t || ""; $("#msg").style.color = bad ? "#a00" : "#006600"; }
+
+  async function api(opts) {
+    const r = await fetch("/api/admin" + (opts && opts.qs || ""), {
+      method: (opts && opts.method) || "GET",
+      headers: Object.assign({ "x-admin-key": KEY }, opts && opts.body ? { "content-type": "application/json" } : {}),
+      body: opts && opts.body ? JSON.stringify(opts.body) : undefined,
+      cache: "no-store"
+    });
+    if (r.status === 401) throw new Error("Wrong admin key.");
+    if (r.status === 503) { const j = await r.json().catch(() => ({})); throw new Error(j.error || "Server not ready."); }
+    if (!r.ok) throw new Error("Server error " + r.status);
+    return r;
+  }
+
+  async function loadPubs() {
+    try {
+      const t = await (await fetch("/pubs.yaml", { cache: "no-store" })).text();
+      const d = window.jsyaml ? jsyaml.load(t) : null;
+      pubs = (d && d.pubs) || [];
+    } catch (e) { pubs = []; }
+  }
+
+  function render(recs) {
+    // latest state per person+pub (an "undo" removes the tick)
+    const people = new Map();
+    recs = recs.slice().sort((a, b) => ((a.pressedAt || a.at) < (b.pressedAt || b.at) ? -1 : 1));
+    recs.forEach((r) => {
+      if (!people.has(r.device)) people.set(r.device, { name: r.name, device: r.device, pubs: {}, last: r.at });
+      const p = people.get(r.device);
+      p.name = r.name; p.last = r.at;
+      if (r.action === "undo") delete p.pubs[r.pub];
+      else p.pubs[r.pub] = r;
+    });
+    const list = [...people.values()].sort((a, b) => Object.keys(b.pubs).length - Object.keys(a.pubs).length || a.name.localeCompare(b.name));
+    const nPubs = Math.max(pubs.length, ...recs.map((r) => r.pub + 1), 0);
+    const names = Array.from({ length: nPubs }, (_, i) => (pubs[i] && pubs[i].name) || (recs.find((r) => r.pub === i) || {}).pubName || "Pub " + (i + 1));
+
+    let verified = 0, total = 0;
+    list.forEach((p) => Object.values(p.pubs).forEach((r) => { total++; if (r.verified === "yes") verified++; }));
+    const finishers = list.filter((p) => Object.keys(p.pubs).length >= nPubs && nPubs > 0).length;
+    $("#stats").innerHTML =
+      "<div><b>" + list.length + "</b>people</div><div><b>" + total + "</b>check-ins</div><div><b>" + verified + "</b>verified</div><div><b>" + finishers + "</b>did all " + nPubs + "</div>";
+
+    let h = "<tr><th>Name</th><th>#</th>" + names.map((n, i) => "<th class='pubh' title='" + esc(n) + "'>" + (i + 1) + ". " + esc(n) + "</th>").join("") + "</tr>";
+    h += list.map((p) => {
+      const cnt = Object.keys(p.pubs).length;
+      return "<tr><td class='name' title='device " + esc(p.device) + "'>" + esc(p.name) + "</td><td>" + cnt + "</td>" +
+        names.map((_, i) => {
+          const r = p.pubs[i];
+          if (!r) return "<td></td>";
+          const t = new Date(r.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+          if (r.verified === "yes") return "<td class='v' title='" + t + " · " + r.distance + " m away'>✅</td>";
+          if (r.verified === "not-near") return "<td class='n' title='" + t + " · " + r.distance + " m away (±" + (r.accuracy || "?") + " m)'>❓</td>";
+          return "<td class='u' title='" + t + " · no location (" + esc(r.locationError || "not shared") + ")'>☑️</td>";
+        }).join("") + "</tr>";
+    }).join("");
+    if (!list.length) h += "<tr><td colspan='" + (nPubs + 2) + "'>No check-ins yet.</td></tr>";
+    $("#grid").innerHTML = h;
+
+    const recent = recs.slice(-30).reverse();
+    $("#log").innerHTML = "<tr><th>Time</th><th>Name</th><th>Pub</th><th>Result</th></tr>" + (recent.length ? recent.map((r) =>
+      "<tr><td>" + new Date(r.pressedAt || r.at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) + "</td><td>" + esc(r.name) + "</td><td>" + (r.pub + 1) + ". " + esc(r.pubName) +
+      "</td><td>" + (r.action === "undo" ? "unticked" : r.verified === "yes" ? "✅ " + r.distance + " m" : r.verified === "not-near" ? "❓ " + r.distance + " m" : "☑️ " + esc(r.locationError || "no location")) + "</td></tr>"
+    ).join("") : "<tr><td colspan='4'>Nothing yet.</td></tr>");
+  }
+
+  async function refresh() {
+    try {
+      const j = await (await api()).json();
+      render(j.records || []);
+      $("#updated").textContent = "updated " + new Date().toLocaleTimeString();
+      msg("");
+    } catch (e) { msg(e.message, true); if (/key/.test(e.message)) logout(); }
+  }
+
+  function logout() {
+    $("#app").style.display = "none"; $("#login").style.display = "flex";
+    try { sessionStorage.removeItem("12pubs-admin"); } catch (e) {}
+    clearInterval(timer);
+  }
+
+  async function start() {
+    try {
+      await api();
+    } catch (e) { alertBox(e.message); return; }
+    try { sessionStorage.setItem("12pubs-admin", KEY); } catch (e) {}
+    $("#login").style.display = "none"; $("#app").style.display = "block";
+    await loadPubs();
+    await refresh();
+    clearInterval(timer);
+    timer = setInterval(() => { if ($("#auto").checked && !document.hidden) refresh(); }, 30000);
+  }
+  function alertBox(t) { msg(t, true); $("#app").style.display = "block"; $("#stats").innerHTML = ""; $("#grid").innerHTML = ""; $("#log").innerHTML = ""; }
+
+  $("#login").addEventListener("submit", (e) => { e.preventDefault(); KEY = $("#key").value.trim(); if (KEY) start(); });
+  $("#refresh").addEventListener("click", refresh);
+  async function download(fmt, name) {
+    try {
+      const blob = await (await api({ qs: "?format=" + fmt })).blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name + "-" + new Date().toISOString().slice(0, 10) + ".csv";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) { msg(e.message, true); }
+  }
+  $("#csv").addEventListener("click", () => download("csv", "pub-crawl-checkins"));
+  $("#csvlog").addEventListener("click", () => download("log", "pub-crawl-full-log"));
+  $("#wipe").addEventListener("click", async () => {
+    if ($("#confirm").value.trim() !== "DELETE") { msg("Type DELETE in the box first.", true); return; }
+    try {
+      const j = await (await api({ method: "POST", body: { action: "delete-all" } })).json();
+      $("#confirm").value = "";
+      msg("Deleted " + j.deleted + " records.");
+      refresh();
+    } catch (e) { msg(e.message, true); }
+  });
+
+  if (KEY) { $("#key").value = KEY; start(); }
+})();
+</script>
+</body>
+</html>

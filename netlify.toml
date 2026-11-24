@@ -1,0 +1,15 @@
+# Fantastical 12 Pubs of 2026
+# - site/                 -> the public website (edit site/pubs.yaml for pubs & rules)
+# - netlify/functions/    -> check-in + host admin endpoints (stored in Netlify Blobs)
+[build]
+  publish = "site"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/admin.html"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+    Cache-Control = "no-store"

@@ -1,0 +1,149 @@
+# ============================================================
+#  12 PUBS OF CHRISTMAS  ~*~  the only file you need to edit
+# ============================================================
+#  Stops appear on the site in the order listed here.
+#  Only `name` and `rule` are required. Everything else is optional:
+#    section : a heading shown when it changes ("East Village", "Brooklyn")
+#    address : used for the "Google Maps" / "directions" links
+#    lat/lng : puts a pin on the map + works out walking times
+#              (right-click a spot in Google Maps to copy them)
+#    travel  : how you get TO this stop: walk (default) or train
+#    type    : set to "train" for a stop that isn't a pub (draws it as a subway stop)
+#    time    : fixed arrival time. If left out, the site estimates one from
+#              event.start_time + minutes_per_pub + travel time.
+#    emoji   : shown next to the name
+#    notes   : any extra info
+#
+#  Coordinates below are approximate (good enough for the map).
+# ============================================================
+
+event:
+  title: "Fantastical 12 Pubs of 2026"
+  tagline: "12 pubs, 12 pints, 12 rules"
+  header_image: "header.jpg"   # photo shown in the header (put the file next to index.html). Delete to hide.
+  year: 2026
+  date: "2026-12-05"          # YYYY-MM-DD, drives the countdown
+  start_time: "4:00 PM"       # drives the countdown + estimated arrival times
+  done_unlocks_at: "2026-12-05T15:00:00-05:00"   # DONE buttons are locked until this time (NY time). Delete the line to switch the lock off.
+  minutes_per_pub: 30         # 30 minutes max in each pub!
+  train_minutes: 20           # time allowed for the L train ride
+  meet_at: "Lucky, 168 Avenue B"
+  checkins: true              # location check-ins when you tick DONE (needs the Netlify functions deployed)
+  verify_radius_m: 150        # how close (metres) to a pub counts as "verified"
+  leaderboard: true           # public live leaderboard (names + pub counts only)
+  dress_code: "Christmas jumpers MANDATORY 🎅"
+  penalty: "Break a rule = FINISH YOUR DRINK or DO A SHOT"
+  donation:                   # delete this block to hide the donation box
+    name: "Ionad Hind Rajab"
+    url: "https://www.ionadhindrajab.org/donate"
+    blurb: "We're raising money for Ionad Hind Rajab, a centre in Mawasi, Khan Younis supporting displaced children in Gaza with food, clean water, education, play and psychosocial support."
+    button: "DONATE NOW"
+  host: "Your Name Here"
+  contact: "text the group chat"
+  night_rules:
+    - "Christmas jumpers mandatory 🎅"
+    - "30 minutes max in each pub. No dawdling."
+    - "If a ping pong ball ends up in your drink, you must finish the rest of your drink. The ball is then yours to drop into someone else's cup 😈"
+
+pubs:
+  # ---------------- EAST VILLAGE ----------------
+  - name: "Lucky"
+    section: "East Village"
+    address: "168 Avenue B, New York, NY 10009"
+    lat: 40.7279
+    lng: -73.9796
+    emoji: "🍀"
+    rule: "Let a random person choose your drink."
+
+  - name: "Mona's"
+    section: "East Village"
+    address: "224 Avenue B, New York, NY 10009"
+    lat: 40.7302
+    lng: -73.9779
+    emoji: "🥂"
+    rule: "You must cheers after every sip."
+
+  - name: "Drop Off Service"
+    section: "East Village"
+    address: "211 Avenue A, New York, NY 10009"
+    lat: 40.7311
+    lng: -73.9812
+    emoji: "🔤"
+    rule: "Get a drink starting with the first letter of your first name."
+
+  - name: "O'Hanlon's"
+    section: "East Village"
+    address: "349 E 14th St, New York, NY 10003"
+    lat: 40.7320
+    lng: -73.9840
+    emoji: "☘️"
+    rule: "No Béarla 🏴󠁧󠁢󠁥󠁮󠁧󠁿❌ English is not allowed. Find a common (🇮🇪) language to communicate."
+
+  - name: "The L Train (Transit)"
+    type: train
+    section: "East Village"
+    address: "1st Avenue Station, E 14th St & 1st Ave, New York, NY"
+    lat: 40.7308
+    lng: -73.9817
+    emoji: "🚇"
+    rule: "Grab a can and take the L to Williamsburg. NO HANDRAILS."
+    notes: "Ride the L from 1st Av to Graham Av."
+
+  # ---------------- BROOKLYN ----------------
+  - name: "Harefield Road"
+    section: "Brooklyn"
+    travel: train
+    address: "769 Metropolitan Ave, Brooklyn, NY 11211"
+    lat: 40.7142
+    lng: -73.9410
+    emoji: "👉"
+    rule: "No pointing."
+
+  - name: "Easy Lover"
+    section: "Brooklyn"
+    address: "790 Metropolitan Ave, Brooklyn, NY 11211"
+    lat: 40.7146
+    lng: -73.9399
+    emoji: "🎨"
+    rule: "Everyone must order a drink the same colour as something they're wearing."
+
+  - name: "Blinky's"
+    section: "Brooklyn"
+    address: "609 Grand St, Brooklyn, NY 11211"
+    lat: 40.7117
+    lng: -73.9473
+    emoji: "🫲"
+    rule: "Drink only with your left hand."
+
+  - name: "Ontario"
+    section: "Brooklyn"
+    address: "559 Grand St, Brooklyn, NY 11211"
+    lat: 40.7114
+    lng: -73.9493
+    emoji: "🤐"
+    rule: "No asking questions."
+
+  - name: "The Clonard"
+    section: "Brooklyn"
+    address: "506 Grand St, Brooklyn, NY 11211"
+    lat: 40.7111
+    lng: -73.9512
+    emoji: "✊"
+    rule: "Rock, paper, scissors. Loser buys the round."
+
+  - name: "Rocka Rolla"
+    section: "Brooklyn"
+    address: "486 Metropolitan Ave, Brooklyn, NY 11211"
+    lat: 40.7140
+    lng: -73.9530
+    emoji: "🐠"
+    rule: "Goblet only (Bud or fishbowl)."
+
+  - name: "The Craic"
+    section: "Brooklyn"
+    address: "488 Driggs Ave, Brooklyn, NY 11211"
+    lat: 40.7192
+    lng: -73.9553
+    emoji: "👟"
+    rule: "Swap shoes!"
+    notes: "Final stop. You made it, congrats! 🏆"
